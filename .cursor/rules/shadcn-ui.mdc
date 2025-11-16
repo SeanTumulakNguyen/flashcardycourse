@@ -1,0 +1,67 @@
+---
+alwaysApply: true
+---
+# shadcn/ui Usage Guidelines
+
+This project uses **shadcn/ui** for all UI elements and components.
+
+## Configuration
+
+shadcn/ui is configured in [components.json](mdc:components.json) with the following settings:
+- Style: New York
+- Base Color: Neutral
+- Icon Library: Lucide React
+- Component Path: `@/components/ui`
+- Utils Path: `@/lib/utils`
+
+## Installation
+
+If shadcn/ui is not initialized in the project, use:
+
+```bash
+npx shadcn@latest init
+```
+
+## Adding Components
+
+When a specific component is needed but not yet installed, use:
+
+```bash
+npx shadcn@latest add <component-name>
+```
+
+Examples:
+```bash
+npx shadcn@latest add button
+npx shadcn@latest add card
+npx shadcn@latest add input
+npx shadcn@latest add dialog
+npx shadcn@latest add select
+```
+
+## Using Components
+
+Components are installed to `src/components/ui/` and should be imported using the alias:
+
+```typescript
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+```
+
+## Styling Utilities
+
+The utility function `cn()` from [src/lib/utils.ts](mdc:src/lib/utils.ts) should be used for merging Tailwind classes:
+
+```typescript
+import { cn } from "@/lib/utils"
+
+<div className={cn("base-class", conditionalClass && "conditional-class")} />
+```
+
+## Important Rules
+
+1. **Always use shadcn/ui components** for UI elements instead of creating custom components from scratch
+2. **Check if a component exists** in `src/components/ui/` before installing
+3. **Use the `cn()` utility** for conditional class names
+4. **Follow the New York style** conventions established in the project
+5. **Leverage Lucide React icons** for all iconography needs
