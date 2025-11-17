@@ -8,6 +8,8 @@ import {
 } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import { AuthModal } from "@/components/auth-modal";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -38,6 +40,16 @@ export default function RootLayout({
         >
           <header className="border-b border-border">
             <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <Link href="/" className="font-semibold text-lg">
+                  Flashcard Course
+                </Link>
+                <SignedIn>
+                  <Button variant="ghost" asChild>
+                    <Link href="/dashboard">Dashboard</Link>
+                  </Button>
+                </SignedIn>
+              </div>
               <SignedOut>
                 <AuthModal />
               </SignedOut>
