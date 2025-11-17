@@ -2,12 +2,11 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import {
   ClerkProvider,
-  SignInButton,
-  SignUpButton,
   SignedIn,
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { AuthModal } from "@/components/auth-modal";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -35,10 +34,7 @@ export default function RootLayout({
           <header className="border-b border-border">
             <div className="container mx-auto px-4 py-4 flex justify-between items-center">
               <SignedOut>
-                <div className="flex gap-4">
-                  <SignInButton />
-                  <SignUpButton />
-                </div>
+                <AuthModal />
               </SignedOut>
               <SignedIn>
                 <UserButton />
