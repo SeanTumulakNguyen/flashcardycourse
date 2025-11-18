@@ -1,0 +1,81 @@
+---
+alwaysApply: true
+description: Database interactions must always use Drizzle ORM schema and queries
+---
+
+# Database Interaction Rules
+
+All database interactions in this project **MUST** use Drizzle ORM with the defined schema and queries.
+
+## Database Connection
+
+Always import and use the database connection from [src/lib/db/index.ts](mdc:src/lib/db/index.ts):
+
+```typescript
+import { db } from "@/lib/db";
+```
+
+## Schema Usage
+
+All database tables and types are defined in [src/lib/db/schema.ts](mdc:src/lib/db/schema.ts). 
+
+**NEVER** write raw SQL queries or use other database libraries. Always use Drizzle ORM methods:
+
+- ✅ `db.select()` - for SELECT queries
+- ✅ `db.insert()` - for INSERT operations
+- ✅ `db.update()` - for UPDATE operations
+- ✅ `db.delete()` - for DELETE operations
+- ✅ Relations API - for type-safe joins and relationships
+
+## Examples
+
+### ✅ CORRECT: Using Drizzle ORM
+
+```typescript
+import { db } from "@/lib/db";
+import { decks, cards } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
+// Select all decks for a user
+const userDecks = await db.select().from(decks).where(eq(decks.userId, userId));
+
+// Insert a new deck
+const [newDeck] = await db.insert(decks).values({
+  userId: userId,
+  name: "Indonesian Language",
+  description: "Learning Indonesian vocabulary"
+}).returning();
+
+// Select cards with deck relation
+const deckWithCards = await db.query.decks.findFirst({
+  where: eq(decks.id, deckId),
+  with: { cards: true }
+});
+```
+
+### ❌ INCORRECT: Raw SQL or other libraries
+
+```typescript
+// DO NOT use raw SQL
+await db.execute("SELECT * FROM decks WHERE user_id = $1", [userId]);
+
+// DO NOT use other ORMs or query builders
+// DO NOT bypass Drizzle schema definitions
+```
+
+## Schema Updates
+
+When adding new tables or modifying existing ones:
+
+1. Update [src/lib/db/schema.ts](mdc:src/lib/db/schema.ts)
+2. Run `npm run db:push` to sync changes to the database
+3. Use the updated schema types in your code
+
+## Type Safety
+
+Drizzle provides full TypeScript type safety. Always leverage:
+- Imported table schemas (`decks`, `cards`, etc.)
+- Inferred types from queries
+- Relation types for joins
+
+This ensures compile-time safety and prevents runtime database errors.

@@ -1,0 +1,177 @@
+---
+alwaysApply: true
+description: Authentication is handled by Clerk, and users must only access their own data
+---
+
+# Authentication and Data Isolation Rules
+
+**CRITICAL SECURITY RULE**: All authentication is handled by Clerk. Users must **ONLY** be able to access their own data and **NEVER** access data that does not belong to them.
+
+## Authentication
+
+Authentication is handled entirely by Clerk. Use Clerk's authentication methods to get the current user ID.
+
+### Getting Current User ID
+
+**Server Components/API Routes:**
+```typescript
+import { auth } from "@clerk/nextjs/server";
+
+const { userId } = await auth();
+if (!userId) {
+  // Handle unauthenticated user (redirect, throw error, etc.)
+}
+```
+
+**Client Components:**
+```typescript
+import { useUser } from "@clerk/nextjs";
+
+const { user } = useUser();
+const userId = user?.id;
+```
+
+## Data Isolation Requirements
+
+### ✅ CORRECT: Always Filter by userId
+
+**When querying decks:**
+```typescript
+import { db } from "@/lib/db";
+import { decks } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
+
+const { userId } = await auth();
+if (!userId) {
+  throw new Error("Unauthorized");
+}
+
+// ✅ CORRECT: Always filter by userId
+const userDecks = await db.select().from(decks).where(eq(decks.userId, userId));
+```
+
+**When querying cards (must verify deck ownership):**
+```typescript
+import { db } from "@/lib/db";
+import { decks, cards } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
+import { auth } from "@clerk/nextjs/server";
+
+const { userId } = await auth();
+if (!userId) {
+  throw new Error("Unauthorized");
+}
+
+// ✅ CORRECT: Verify deck belongs to user before accessing cards
+const deck = await db.query.decks.findFirst({
+  where: eq(decks.id, deckId),
+});
+
+if (!deck || deck.userId !== userId) {
+  throw new Error("Deck not found or access denied");
+}
+
+// Now safe to query cards for this deck
+const deckCards = await db.select().from(cards).where(eq(cards.deckId, deckId));
+```
+
+**When creating/updating/deleting:**
+```typescript
+// ✅ CORRECT: Always set userId when creating
+const [newDeck] = await db.insert(decks).values({
+  userId: userId, // MUST come from authenticated user
+  name: "My Deck",
+  description: "Description"
+}).returning();
+
+// ✅ CORRECT: Verify ownership before updating/deleting
+const deck = await db.query.decks.findFirst({
+  where: and(eq(decks.id, deckId), eq(decks.userId, userId)),
+});
+
+if (!deck) {
+  throw new Error("Deck not found or access denied");
+}
+
+// Now safe to update/delete
+await db.update(decks)
+  .set({ name: "Updated Name" })
+  .where(eq(decks.id, deckId));
+```
+
+### ❌ INCORRECT: Security Violations
+
+```typescript
+// ❌ NEVER query without userId filter
+const allDecks = await db.select().from(decks); // SECURITY RISK!
+
+// ❌ NEVER trust client-provided userId
+const { userId: clientUserId } = req.body; // NEVER USE THIS!
+await db.select().from(decks).where(eq(decks.userId, clientUserId));
+
+// ❌ NEVER skip ownership verification
+const cards = await db.select().from(cards).where(eq(cards.deckId, deckId));
+// Missing check: Does this deck belong to the current user?
+
+// ❌ NEVER allow userId to be optional in queries
+const deck = await db.query.decks.findFirst({
+  where: eq(decks.id, deckId), // Missing userId check!
+});
+```
+
+## Security Checklist
+
+Before writing any database query, verify:
+
+1. ✅ Is the user authenticated? (Check `userId` exists)
+2. ✅ Does the query filter by `userId`? (For user-owned resources)
+3. ✅ If accessing related data (e.g., cards), is the parent resource (deck) owned by the user?
+4. ✅ Are you using `userId` from Clerk's `auth()`, not from client input?
+5. ✅ Are you verifying ownership before UPDATE/DELETE operations?
+
+## Schema Reference
+
+The database schema stores user ownership in [src/lib/db/schema.ts](mdc:src/lib/db/schema.ts):
+- `decks.userId` - Clerk user ID (text)
+- Cards are accessed through decks, so verify deck ownership first
+
+## Middleware Protection
+
+Protected routes are defined in [src/proxy.ts](mdc:src/proxy.ts). However, middleware protection is not enough - **always verify data ownership in your queries**.
+
+## Example: Complete Secure Query Pattern
+
+```typescript
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
+import { decks, cards } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
+
+export async function getUserDeckWithCards(deckId: string) {
+  // 1. Get authenticated user
+  const { userId } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // 2. Verify deck ownership
+  const deck = await db.query.decks.findFirst({
+    where: and(
+      eq(decks.id, deckId),
+      eq(decks.userId, userId) // CRITICAL: Filter by userId
+    ),
+    with: {
+      cards: true, // Safe to include cards since deck ownership verified
+    },
+  });
+
+  if (!deck) {
+    throw new Error("Deck not found or access denied");
+  }
+
+  return deck;
+}
+```
+
+**Remember**: Data isolation is a security requirement, not optional. Every database query must respect user boundaries.
