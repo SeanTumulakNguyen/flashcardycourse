@@ -27,7 +27,6 @@ export function AuthModal() {
     <>
       <div className="flex gap-4">
         <Button
-          variant="outline"
           onClick={() => {
             setMode("signin");
             setOpen(true);
@@ -36,6 +35,7 @@ export function AuthModal() {
           Sign In
         </Button>
         <Button
+          variant="outline"
           onClick={() => {
             setMode("signup");
             setOpen(true);
