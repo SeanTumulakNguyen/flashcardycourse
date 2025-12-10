@@ -1,17 +1,26 @@
 ---
 alwaysApply: true
-description: Database interactions must always use Drizzle ORM schema and queries
 ---
-
 # Database Interaction Rules
 
 All database interactions in this project **MUST** use Drizzle ORM with the defined schema and queries.
 
+## ⚠️ CRITICAL RULE: All Queries Must Go Through Helper Functions
+
+**ABSOLUTELY NO direct database queries should be written in Server Components, Server Actions, or any other application code.**
+
+- ✅ **ONLY** use helper functions/queries from `src/lib/db/queries/` directory
+- ❌ **NEVER** import `db` directly in Server Components or Server Actions
+- ❌ **NEVER** write `db.select()`, `db.insert()`, `db.update()`, or `db.delete()` outside of the queries directory
+- ✅ All database queries and mutations **MUST** be encapsulated in helper functions within `src/lib/db/queries/`
+
 ## Database Connection
 
-Always import and use the database connection from [src/lib/db/index.ts](mdc:src/lib/db/index.ts):
+The database connection is available in [src/lib/db/index.ts](mdc:src/lib/db/index.ts) and should **ONLY** be imported within query helper functions:
 
 ```typescript
+// ✅ CORRECT: Only import db in query helper functions
+// src/lib/db/queries/decks.ts
 import { db } from "@/lib/db";
 ```
 
@@ -19,7 +28,7 @@ import { db } from "@/lib/db";
 
 All database tables and types are defined in [src/lib/db/schema.ts](mdc:src/lib/db/schema.ts). 
 
-**NEVER** write raw SQL queries or use other database libraries. Always use Drizzle ORM methods:
+**NEVER** write raw SQL queries or use other database libraries. Always use Drizzle ORM methods within query helper functions:
 
 - ✅ `db.select()` - for SELECT queries
 - ✅ `db.insert()` - for INSERT operations
@@ -27,41 +36,255 @@ All database tables and types are defined in [src/lib/db/schema.ts](mdc:src/lib/
 - ✅ `db.delete()` - for DELETE operations
 - ✅ Relations API - for type-safe joins and relationships
 
-## Examples
+## Query Helper Functions Structure
 
-### ✅ CORRECT: Using Drizzle ORM
+All database queries and mutations must be organized in helper functions within `src/lib/db/queries/`. Each resource should have its own query file (e.g., `decks.ts`, `cards.ts`).
 
+### ✅ CORRECT: Query Helper Functions
+
+**Example: `src/lib/db/queries/decks.ts`**
 ```typescript
 import { db } from "@/lib/db";
 import { decks, cards } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
-// Select all decks for a user
-const userDecks = await db.select().from(decks).where(eq(decks.userId, userId));
+/**
+ * Get all decks for a user
+ */
+export async function getUserDecks(userId: string) {
+  return await db.select().from(decks).where(eq(decks.userId, userId));
+}
 
-// Insert a new deck
-const [newDeck] = await db.insert(decks).values({
-  userId: userId,
-  name: "Indonesian Language",
-  description: "Learning Indonesian vocabulary"
-}).returning();
+/**
+ * Get a single deck by ID, verifying ownership
+ */
+export async function getUserDeck(deckId: string, userId: string) {
+  const deck = await db.query.decks.findFirst({
+    where: and(
+      eq(decks.id, deckId),
+      eq(decks.userId, userId)
+    ),
+    with: { cards: true }
+  });
+  
+  if (!deck) {
+    throw new Error("Deck not found or access denied");
+  }
+  
+  return deck;
+}
 
-// Select cards with deck relation
-const deckWithCards = await db.query.decks.findFirst({
-  where: eq(decks.id, deckId),
-  with: { cards: true }
-});
+/**
+ * Create a new deck
+ */
+export async function createDeck(userId: string, data: { name: string; description?: string }) {
+  const [newDeck] = await db.insert(decks).values({
+    userId,
+    name: data.name,
+    description: data.description,
+  }).returning();
+  
+  return newDeck;
+}
+
+/**
+ * Update a deck, verifying ownership
+ */
+export async function updateDeck(deckId: string, userId: string, data: { name?: string; description?: string }) {
+  // Verify ownership first
+  const deck = await db.query.decks.findFirst({
+    where: and(
+      eq(decks.id, deckId),
+      eq(decks.userId, userId)
+    ),
+  });
+  
+  if (!deck) {
+    throw new Error("Deck not found or access denied");
+  }
+  
+  const [updatedDeck] = await db.update(decks)
+    .set(data)
+    .where(eq(decks.id, deckId))
+    .returning();
+  
+  return updatedDeck;
+}
+
+/**
+ * Delete a deck, verifying ownership
+ */
+export async function deleteDeck(deckId: string, userId: string) {
+  // Verify ownership first
+  const deck = await db.query.decks.findFirst({
+    where: and(
+      eq(decks.id, deckId),
+      eq(decks.userId, userId)
+    ),
+  });
+  
+  if (!deck) {
+    throw new Error("Deck not found or access denied");
+  }
+  
+  await db.delete(decks).where(eq(decks.id, deckId));
+}
 ```
 
-### ❌ INCORRECT: Raw SQL or other libraries
+**Example: `src/lib/db/queries/cards.ts`**
+```typescript
+import { db } from "@/lib/db";
+import { cards, decks } from "@/lib/db/schema";
+import { eq, and } from "drizzle-orm";
+
+/**
+ * Get all cards for a deck, verifying deck ownership
+ */
+export async function getDeckCards(deckId: string, userId: string) {
+  // Verify deck ownership first
+  const deck = await db.query.decks.findFirst({
+    where: and(
+      eq(decks.id, deckId),
+      eq(decks.userId, userId)
+    ),
+  });
+  
+  if (!deck) {
+    throw new Error("Deck not found or access denied");
+  }
+  
+  return await db.select().from(cards).where(eq(cards.deckId, deckId));
+}
+
+/**
+ * Create a new card in a deck, verifying deck ownership
+ */
+export async function createCard(deckId: string, userId: string, data: { front: string; back: string; position?: number }) {
+  // Verify deck ownership first
+  const deck = await db.query.decks.findFirst({
+    where: and(
+      eq(decks.id, deckId),
+      eq(decks.userId, userId)
+    ),
+  });
+  
+  if (!deck) {
+    throw new Error("Deck not found or access denied");
+  }
+  
+  const [newCard] = await db.insert(cards).values({
+    deckId,
+    front: data.front,
+    back: data.back,
+    position: data.position ?? 0,
+  }).returning();
+  
+  return newCard;
+}
+```
+
+### ✅ CORRECT: Using Query Helpers in Server Components
 
 ```typescript
-// DO NOT use raw SQL
+// app/decks/page.tsx - Server Component
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserDecks } from "@/lib/db/queries/decks";
+
+export default async function DecksPage() {
+  const { userId } = await auth();
+  if (!userId) {
+    redirect("/");
+  }
+
+  // ✅ CORRECT: Use query helper function
+  const userDecks = await getUserDecks(userId);
+
+  return (
+    <div>
+      {userDecks.map((deck) => (
+        <div key={deck.id}>{deck.name}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+### ✅ CORRECT: Using Query Helpers in Server Actions
+
+```typescript
+// app/actions/decks.ts - Server Actions file
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { createDeck } from "@/lib/db/queries/decks";
+
+const createDeckSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(500).optional(),
+});
+
+type CreateDeckInput = z.infer<typeof createDeckSchema>;
+
+export async function createDeckAction(input: CreateDeckInput) {
+  const validatedInput = createDeckSchema.parse(input);
+
+  const { userId } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // ✅ CORRECT: Use query helper function
+  const newDeck = await createDeck(userId, {
+    name: validatedInput.name,
+    description: validatedInput.description,
+  });
+
+  revalidatePath("/decks");
+  return newDeck;
+}
+```
+
+### ❌ INCORRECT: Direct Database Access
+
+```typescript
+// ❌ NEVER import db directly in Server Components or Server Actions
+import { db } from "@/lib/db";
+import { decks } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+
+// ❌ NEVER write queries directly
+const userDecks = await db.select().from(decks).where(eq(decks.userId, userId));
+
+// ❌ NEVER write mutations directly
+await db.insert(decks).values({ userId, name: "My Deck" });
+```
+
+### ❌ INCORRECT: Raw SQL, Other Libraries, or Direct Database Access
+
+```typescript
+// ❌ DO NOT use raw SQL
 await db.execute("SELECT * FROM decks WHERE user_id = $1", [userId]);
 
-// DO NOT use other ORMs or query builders
-// DO NOT bypass Drizzle schema definitions
+// ❌ DO NOT use other ORMs or query builders
+// ❌ DO NOT bypass Drizzle schema definitions
+
+// ❌ DO NOT access db directly outside of query helper functions
+import { db } from "@/lib/db"; // ❌ Only import in src/lib/db/queries/* files
+const decks = await db.select().from(decks); // ❌ Use helper function instead
 ```
+
+## Query Helper Function Requirements
+
+When creating query helper functions in `src/lib/db/queries/`:
+
+1. **Authentication**: Query functions should accept `userId` as a parameter (never trust client input)
+2. **Data Isolation**: Always filter by `userId` or verify ownership before accessing data
+3. **Error Handling**: Throw descriptive errors when resources are not found or access is denied
+4. **Type Safety**: Use TypeScript types from the schema and inferred return types
+5. **Organization**: Group related queries in the same file (e.g., all deck queries in `decks.ts`)
 
 ## Schema Updates
 
@@ -69,7 +292,8 @@ When adding new tables or modifying existing ones:
 
 1. Update [src/lib/db/schema.ts](mdc:src/lib/db/schema.ts)
 2. Run `npm run db:push` to sync changes to the database
-3. Use the updated schema types in your code
+3. Create or update query helper functions in `src/lib/db/queries/` for the new/modified tables
+4. Use the updated schema types in your query helper functions
 
 ## Type Safety
 
@@ -77,5 +301,17 @@ Drizzle provides full TypeScript type safety. Always leverage:
 - Imported table schemas (`decks`, `cards`, etc.)
 - Inferred types from queries
 - Relation types for joins
+- Return types from query helper functions
 
 This ensures compile-time safety and prevents runtime database errors.
+
+## File Organization
+
+- **Database Connection**: `src/lib/db/index.ts` - exports `db` instance
+- **Schema Definitions**: `src/lib/db/schema.ts` - table and relation definitions
+- **Query Helpers**: `src/lib/db/queries/*.ts` - all database queries and mutations
+  - `decks.ts` - deck-related queries
+  - `cards.ts` - card-related queries
+  - Add more files as needed for other resources
+
+**Remember**: The `db` instance should **ONLY** be imported within `src/lib/db/queries/` files. All other code must use the query helper functions.

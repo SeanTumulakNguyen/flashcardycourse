@@ -13,10 +13,9 @@ description: Data retrieval via server components, mutations via server actions,
 
 ```typescript
 // app/decks/page.tsx - Server Component
-import { db } from "@/lib/db";
-import { decks } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserDecks } from "@/lib/db/queries/decks";
 
 export default async function DecksPage() {
   const { userId } = await auth();
@@ -24,8 +23,8 @@ export default async function DecksPage() {
     redirect("/");
   }
 
-  // ✅ CORRECT: Fetch data directly in server component
-  const userDecks = await db.select().from(decks).where(eq(decks.userId, userId));
+  // ✅ CORRECT: Use query helper function in server component
+  const userDecks = await getUserDecks(userId);
 
   return (
     <div>
@@ -64,11 +63,10 @@ All database mutations (INSERT, UPDATE, DELETE) **MUST** be done via Server Acti
 // app/actions/decks.ts - Server Actions file
 "use server";
 
-import { db } from "@/lib/db";
-import { decks } from "@/lib/db/schema";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { createDeck } from "@/lib/db/queries/decks";
 
 // ✅ CORRECT: Define Zod schema
 const createDeckSchema = z.object({
@@ -79,7 +77,7 @@ const createDeckSchema = z.object({
 // ✅ CORRECT: TypeScript type from Zod schema
 type CreateDeckInput = z.infer<typeof createDeckSchema>;
 
-export async function createDeck(input: CreateDeckInput) {
+export async function createDeckAction(input: CreateDeckInput) {
   // ✅ CORRECT: Validate input with Zod
   const validatedInput = createDeckSchema.parse(input);
 
@@ -88,12 +86,11 @@ export async function createDeck(input: CreateDeckInput) {
     throw new Error("Unauthorized");
   }
 
-  // ✅ CORRECT: Perform database mutation
-  const [newDeck] = await db.insert(decks).values({
-    userId,
+  // ✅ CORRECT: Use query helper function for database mutation
+  const newDeck = await createDeck(userId, {
     name: validatedInput.name,
     description: validatedInput.description,
-  }).returning();
+  });
 
   revalidatePath("/decks");
   return newDeck;
@@ -161,7 +158,8 @@ export async function createDeck(formData: FormData) {
 // ❌ NEVER skip Zod validation
 export async function createDeck(input: { name: string }) {
   // ❌ DO NOT skip validation
-  await db.insert(decks).values({ name: input.name });
+  // ❌ DO NOT access db directly - use query helper function
+  await createDeck(userId, { name: input.name });
 }
 
 // ❌ NEVER use 'any' type
@@ -176,12 +174,10 @@ export async function createDeck(input: any) {
 // app/actions/cards.ts
 "use server";
 
-import { db } from "@/lib/db";
-import { cards, decks } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { createCard as createCardQuery } from "@/lib/db/queries/cards";
 
 // 1. Define Zod schema
 const createCardSchema = z.object({
@@ -205,27 +201,14 @@ export async function createCard(input: CreateCardInput) {
     throw new Error("Unauthorized");
   }
 
-  // 6. Verify deck ownership
-  const deck = await db.query.decks.findFirst({
-    where: and(
-      eq(decks.id, validatedInput.deckId),
-      eq(decks.userId, userId)
-    ),
-  });
-
-  if (!deck) {
-    throw new Error("Deck not found or access denied");
-  }
-
-  // 7. Perform mutation
-  const [newCard] = await db.insert(cards).values({
-    deckId: validatedInput.deckId,
+  // 6. Use query helper function (verifies deck ownership automatically)
+  const newCard = await createCardQuery(validatedInput.deckId, userId, {
     front: validatedInput.front,
     back: validatedInput.back,
     position: validatedInput.position,
-  }).returning();
+  });
 
-  // 8. Revalidate paths
+  // 7. Revalidate paths
   revalidatePath(`/decks/${validatedInput.deckId}`);
   revalidatePath("/decks");
 

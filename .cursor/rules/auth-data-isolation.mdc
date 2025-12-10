@@ -1,5 +1,5 @@
 ---
-alwaysApply: false
+alwaysApply: true
 ---
 # Authentication and Data Isolation Rules
 
@@ -37,88 +37,73 @@ const userId = user?.id;
 
 **When querying decks:**
 ```typescript
-import { db } from "@/lib/db";
-import { decks } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getUserDecks } from "@/lib/db/queries/decks";
 
 const { userId } = await auth();
 if (!userId) {
   redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
 }
 
-// ✅ CORRECT: Always filter by userId
-const userDecks = await db.select().from(decks).where(eq(decks.userId, userId));
+// ✅ CORRECT: Use query helper function (always filters by userId)
+const userDecks = await getUserDecks(userId);
 ```
 
 **When querying cards (must verify deck ownership):**
 ```typescript
-import { db } from "@/lib/db";
-import { decks, cards } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { getDeckCards } from "@/lib/db/queries/cards";
 
 const { userId } = await auth();
 if (!userId) {
   redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
 }
 
-// ✅ CORRECT: Verify deck belongs to user before accessing cards
-const deck = await db.query.decks.findFirst({
-  where: eq(decks.id, deckId),
-});
-
-if (!deck || deck.userId !== userId) {
-  throw new Error("Deck not found or access denied");
-}
-
-// Now safe to query cards for this deck
-const deckCards = await db.select().from(cards).where(eq(cards.deckId, deckId));
+// ✅ CORRECT: Use query helper function (verifies deck ownership automatically)
+const deckCards = await getDeckCards(deckId, userId);
 ```
 
 **When creating/updating/deleting:**
 ```typescript
-// ✅ CORRECT: Always set userId when creating
-const [newDeck] = await db.insert(decks).values({
-  userId: userId, // MUST come from authenticated user
+import { createDeck, updateDeck, deleteDeck } from "@/lib/db/queries/decks";
+
+// ✅ CORRECT: Use query helper function (always sets userId from authenticated user)
+const newDeck = await createDeck(userId, {
   name: "My Deck",
   description: "Description"
-}).returning();
-
-// ✅ CORRECT: Verify ownership before updating/deleting
-const deck = await db.query.decks.findFirst({
-  where: and(eq(decks.id, deckId), eq(decks.userId, userId)),
 });
 
-if (!deck) {
-  throw new Error("Deck not found or access denied");
-}
+// ✅ CORRECT: Use query helper function (verifies ownership automatically)
+const updatedDeck = await updateDeck(deckId, userId, {
+  name: "Updated Name"
+});
 
-// Now safe to update/delete
-await db.update(decks)
-  .set({ name: "Updated Name" })
-  .where(eq(decks.id, deckId));
+// ✅ CORRECT: Use query helper function (verifies ownership automatically)
+await deleteDeck(deckId, userId);
 ```
 
 ### ❌ INCORRECT: Security Violations
 
 ```typescript
 // ❌ NEVER query without userId filter
-const allDecks = await db.select().from(decks); // SECURITY RISK!
+import { db } from "@/lib/db";
+const allDecks = await db.select().from(decks); // SECURITY RISK! Use getUserDecks(userId) instead
 
 // ❌ NEVER trust client-provided userId
 const { userId: clientUserId } = req.body; // NEVER USE THIS!
-await db.select().from(decks).where(eq(decks.userId, clientUserId));
+await getUserDecks(clientUserId); // ❌ Use userId from auth() instead
 
 // ❌ NEVER skip ownership verification
+import { db } from "@/lib/db";
 const cards = await db.select().from(cards).where(eq(cards.deckId, deckId));
-// Missing check: Does this deck belong to the current user?
+// ❌ Missing check: Does this deck belong to the current user? Use getDeckCards(deckId, userId) instead
 
-// ❌ NEVER allow userId to be optional in queries
+// ❌ NEVER access db directly - always use query helper functions
+import { db } from "@/lib/db"; // ❌ Only import db in src/lib/db/queries/* files
 const deck = await db.query.decks.findFirst({
-  where: eq(decks.id, deckId), // Missing userId check!
+  where: eq(decks.id, deckId), // ❌ Missing userId check! Use getUserDeck(deckId, userId) instead
 });
 ```
 
@@ -166,9 +151,7 @@ export default async function ProtectedPage() {
 ```typescript
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { decks, cards } from "@/lib/db/schema";
-import { eq, and } from "drizzle-orm";
+import { getUserDeck } from "@/lib/db/queries/decks";
 
 export async function getUserDeckWithCards(deckId: string) {
   // 1. Get authenticated user
@@ -177,20 +160,8 @@ export async function getUserDeckWithCards(deckId: string) {
     redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
   }
 
-  // 2. Verify deck ownership
-  const deck = await db.query.decks.findFirst({
-    where: and(
-      eq(decks.id, deckId),
-      eq(decks.userId, userId) // CRITICAL: Filter by userId
-    ),
-    with: {
-      cards: true, // Safe to include cards since deck ownership verified
-    },
-  });
-
-  if (!deck) {
-    throw new Error("Deck not found or access denied");
-  }
+  // 2. Use query helper function (verifies deck ownership and includes cards)
+  const deck = await getUserDeck(deckId, userId); // CRITICAL: Automatically filters by userId and includes cards
 
   return deck;
 }
