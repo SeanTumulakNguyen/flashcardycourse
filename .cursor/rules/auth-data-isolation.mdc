@@ -1,8 +1,6 @@
 ---
-alwaysApply: true
-description: Authentication is handled by Clerk, and users must only access their own data
+alwaysApply: false
 ---
-
 # Authentication and Data Isolation Rules
 
 **CRITICAL SECURITY RULE**: All authentication is handled by Clerk. Users must **ONLY** be able to access their own data and **NEVER** access data that does not belong to them.
@@ -16,10 +14,12 @@ Authentication is handled entirely by Clerk. Use Clerk's authentication methods 
 **Server Components/API Routes:**
 ```typescript
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 const { userId } = await auth();
 if (!userId) {
-  // Handle unauthenticated user (redirect, throw error, etc.)
+  // Redirect to homepage where sign-in/sign-up buttons are available
+  redirect("/");
 }
 ```
 
@@ -41,10 +41,11 @@ import { db } from "@/lib/db";
 import { decks } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 const { userId } = await auth();
 if (!userId) {
-  throw new Error("Unauthorized");
+  redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
 }
 
 // ✅ CORRECT: Always filter by userId
@@ -57,10 +58,11 @@ import { db } from "@/lib/db";
 import { decks, cards } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 const { userId } = await auth();
 if (!userId) {
-  throw new Error("Unauthorized");
+  redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
 }
 
 // ✅ CORRECT: Verify deck belongs to user before accessing cards
@@ -140,10 +142,30 @@ The database schema stores user ownership in [src/lib/db/schema.ts](mdc:src/lib/
 
 Protected routes are defined in [src/proxy.ts](mdc:src/proxy.ts). However, middleware protection is not enough - **always verify data ownership in your queries**.
 
+## Protected Pages and Redirects
+
+**IMPORTANT**: This app does not have a dedicated sign-in page. When a user tries to access a protected page that requires authentication, redirect them to the homepage (`/`) where the sign-in and sign-up buttons are available in the header.
+
+```typescript
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+
+export default async function ProtectedPage() {
+  const { userId } = await auth();
+  
+  if (!userId) {
+    redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
+  }
+  
+  // Protected content here
+}
+```
+
 ## Example: Complete Secure Query Pattern
 
 ```typescript
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { decks, cards } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
@@ -152,7 +174,7 @@ export async function getUserDeckWithCards(deckId: string) {
   // 1. Get authenticated user
   const { userId } = await auth();
   if (!userId) {
-    throw new Error("Unauthorized");
+    redirect("/"); // Redirect to homepage where sign-in/sign-up buttons are available
   }
 
   // 2. Verify deck ownership
