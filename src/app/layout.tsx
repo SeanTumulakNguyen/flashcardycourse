@@ -5,9 +5,10 @@ import {
   SignedIn,
   SignedOut,
   UserButton,
+  SignInButton,
+  SignUpButton,
 } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
-import { AuthModal } from "@/components/auth-modal";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import "./globals.css";
@@ -51,7 +52,14 @@ export default function RootLayout({
                 </SignedIn>
               </div>
               <SignedOut>
-                <AuthModal />
+                <div className="flex gap-4">
+                  <SignInButton mode="modal">
+                    <Button>Sign In</Button>
+                  </SignInButton>
+                  <SignUpButton mode="modal">
+                    <Button variant="outline">Sign Up</Button>
+                  </SignUpButton>
+                </div>
               </SignedOut>
               <SignedIn>
                 <UserButton />
