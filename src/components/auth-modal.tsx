@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, startTransition } from "react";
 import { SignIn, SignUp, useUser } from "@clerk/nextjs";
 import {
   Dialog,
@@ -19,7 +19,9 @@ export function AuthModal() {
   // Close modal when user successfully signs in
   useEffect(() => {
     if (isSignedIn && open) {
-      setOpen(false);
+      startTransition(() => {
+        setOpen(false);
+      });
     }
   }, [isSignedIn, open]);
 

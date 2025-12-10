@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { decks, cards } from "@/lib/db/schema";
+import { decks } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 
 /**
