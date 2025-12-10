@@ -144,3 +144,4 @@ function CustomInput() {
 5. **Follow the New York style** conventions established in the project
 6. **Leverage Lucide React icons** for all iconography needs
 7. **Clerk authentication** must use shadcn/ui Button and Dialog components
+8. This project is in dark mode so make sure there are no dark colored text on dark backgrounds and vice versa.
