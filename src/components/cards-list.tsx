@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { CardItem } from "./card-item";
+import { CardForm } from "./card-form";
 
 interface Card {
   id: string;
@@ -58,7 +59,11 @@ export function CardsList({ cards, deckId }: CardsListProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold">Cards</h2>
+          <CardForm deckId={deckId} mode="add" />
+        </div>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

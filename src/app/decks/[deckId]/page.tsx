@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft, BookOpen } from "lucide-react";
-import { CardForm } from "@/components/card-form";
 import { CardsList } from "@/components/cards-list";
 
 interface DeckPageProps {
@@ -49,25 +48,21 @@ export default async function DeckPage({ params }: DeckPageProps) {
         <p className="text-sm text-muted-foreground mt-2">
           {deck.cards.length} {deck.cards.length === 1 ? "card" : "cards"}
         </p>
-        <div className="mt-4">
-          <CardForm deckId={deckId} mode="add" />
-        </div>
       </div>
 
-      {sortedCards.length === 0 ? (
-        <Card>
+      <CardsList cards={sortedCards} deckId={deckId} />
+      
+      {sortedCards.length === 0 && (
+        <Card className="mt-4">
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground mb-4">
-                This deck doesn't have any cards yet.
+              <p className="text-muted-foreground">
+                This deck doesn't have any cards yet. Use the "+ Add Card" button above to get started.
               </p>
-              <CardForm deckId={deckId} mode="add" />
             </div>
           </CardContent>
         </Card>
-      ) : (
-        <CardsList cards={sortedCards} deckId={deckId} />
       )}
     </div>
   );

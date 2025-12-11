@@ -95,8 +95,8 @@ export function CardForm({ deckId, card, mode = "add" }: CardFormProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {mode === "add" ? (
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
+          <Button size="sm" variant="outline" className="h-8 text-xs px-2">
+            <Plus className="h-3 w-3 mr-1.5" />
             Add Card
           </Button>
         ) : (
