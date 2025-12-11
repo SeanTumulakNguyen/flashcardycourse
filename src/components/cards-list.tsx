@@ -32,7 +32,6 @@ export function CardsList({ cards, deckId }: CardsListProps) {
 
   const sortedCards = useMemo(() => {
     return [...cards].sort((a, b) => {
-      console.log(a.updatedAt, b.updatedAt);
       const dateA = new Date(a.updatedAt).getTime();
       const dateB = new Date(b.updatedAt).getTime();
       

@@ -84,6 +84,22 @@ export function CardItem({ card, index, deckId }: CardItemProps) {
               undone.
             </DialogDescription>
           </DialogHeader>
+          <div className="my-4">
+            <div className="grid grid-cols-2">
+              <div className="flex flex-col items-center justify-center pr-6 border-r">
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  Front
+                </p>
+                <p className="text-base text-center">{card.front}</p>
+              </div>
+              <div className="flex flex-col items-center justify-center pl-6">
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  Back
+                </p>
+                <p className="text-base text-center">{card.back}</p>
+              </div>
+            </div>
+          </div>
           <div className="flex justify-end gap-2 mt-4">
             <Button
               variant="outline"
