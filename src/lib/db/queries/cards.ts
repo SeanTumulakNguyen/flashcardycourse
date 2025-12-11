@@ -65,6 +65,7 @@ export async function createCard(deckId: string, userId: string, data: { front: 
     front: data.front,
     back: data.back,
     position,
+    updatedAt: new Date(),
   }).returning();
   
   return newCard;
@@ -85,7 +86,10 @@ export async function updateCard(cardId: string, userId: string, data: { front?:
   }
   
   const [updatedCard] = await db.update(cards)
-    .set(data)
+    .set({
+      ...data,
+      updatedAt: new Date(),
+    })
     .where(eq(cards.id, cardId))
     .returning();
   

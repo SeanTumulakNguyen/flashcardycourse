@@ -29,8 +29,8 @@ export default async function DeckPage({ params }: DeckPageProps) {
     notFound();
   }
 
-  // Sort cards by position initially (client component will handle date sorting)
-  const sortedCards = [...deck.cards].sort((a, b) => a.position - b.position);
+  // Cards will be sorted by updatedAt in the client component (newest first by default)
+  const sortedCards = [...deck.cards];
 
   return (
     <div className="container mx-auto px-4 py-8">

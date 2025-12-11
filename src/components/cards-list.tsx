@@ -17,6 +17,7 @@ interface Card {
   back: string;
   position: number;
   createdAt: Date | string;
+  updatedAt: Date | string;
 }
 
 interface CardsListProps {
@@ -27,14 +28,18 @@ interface CardsListProps {
 type SortOrder = "asc" | "desc";
 
 export function CardsList({ cards, deckId }: CardsListProps) {
-  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
 
   const sortedCards = useMemo(() => {
     return [...cards].sort((a, b) => {
+      console.log(a.updatedAt, b.updatedAt);
+      const dateA = new Date(a.updatedAt).getTime();
+      const dateB = new Date(b.updatedAt).getTime();
+      
       if (sortOrder === "asc") {
-        return a.position - b.position;
+        return dateA - dateB; // Oldest first
       } else {
-        return b.position - a.position;
+        return dateB - dateA; // Newest first
       }
     });
   }, [cards, sortOrder]);
@@ -53,8 +58,8 @@ export function CardsList({ cards, deckId }: CardsListProps) {
 
   const getNextSortTooltip = () => {
     return sortOrder === "asc"
-      ? "Sort descending (position)"
-      : "Sort ascending (position)";
+      ? "Sort descending (newest first)"
+      : "Sort ascending (oldest first)";
   };
 
   return (
