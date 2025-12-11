@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -47,9 +47,22 @@ export function CardItem({ card, index, deckId }: CardItemProps) {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-lg">Card # {index + 1}</CardTitle>
-          <div className="flex gap-2">
+        <CardContent className="px-6 pt-4 pb-0">
+          <div className="grid grid-cols-2 mb-4">
+            <div className="flex flex-col items-center justify-center pr-6 border-r">
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                Front
+              </p>
+              <p className="text-base text-center">{card.front}</p>
+            </div>
+            <div className="flex flex-col items-center justify-center pl-6">
+              <p className="text-sm font-medium text-muted-foreground mb-2">
+                Back
+              </p>
+              <p className="text-base text-center">{card.back}</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2 pb-0 border-t">
             <CardForm deckId={deckId} card={card} mode="edit" />
             <Button
               variant="ghost"
@@ -58,20 +71,6 @@ export function CardItem({ card, index, deckId }: CardItemProps) {
             >
               <Trash2 className="h-4 w-4 text-red-500 hover:text-red-400" />
             </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground mb-1">
-              Front
-            </p>
-            <p className="text-sm">{card.front}</p>
-          </div>
-          <div>
-            <p className="text-sm font-medium text-muted-foreground mb-1">
-              Back
-            </p>
-            <p className="text-sm">{card.back}</p>
           </div>
         </CardContent>
       </Card>
