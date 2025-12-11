@@ -5,12 +5,13 @@ import {
   SignedIn,
   SignedOut,
   UserButton,
-  SignInButton,
-  SignUpButton,
+  SignOutButton,
 } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { HeaderAuth } from "@/components/header-auth";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -52,21 +53,20 @@ export default function RootLayout({
                 </SignedIn>
               </div>
               <SignedOut>
-                <div className="flex gap-4">
-                  <SignInButton mode="modal">
-                    <Button>Sign In</Button>
-                  </SignInButton>
-                  <SignUpButton mode="modal">
-                    <Button variant="outline">Sign Up</Button>
-                  </SignUpButton>
-                </div>
+                <HeaderAuth />
               </SignedOut>
               <SignedIn>
-                <UserButton />
+                <div className="flex items-center gap-4">
+                  <SignOutButton>
+                    <Button variant="outline">Sign Out</Button>
+                  </SignOutButton>
+                  <UserButton />
+                </div>
               </SignedIn>
             </div>
           </header>
           {children}
+          <Toaster />
         </body>
       </html>
     </ClerkProvider>

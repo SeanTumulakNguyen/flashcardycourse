@@ -1,0 +1,109 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { deleteCardAction } from "@/app/actions/cards";
+import { CardForm } from "./card-form";
+
+interface CardItemProps {
+  card: {
+    id: string;
+    front: string;
+    back: string;
+    position: number;
+  };
+  index: number;
+  deckId: string;
+}
+
+export function CardItem({ card, index, deckId }: CardItemProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await deleteCardAction({ cardId: card.id });
+      toast.success("Card deleted successfully");
+      setShowDeleteDialog(false);
+    } catch (error) {
+      console.error("Error deleting card:", error);
+      toast.error("Failed to delete card. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg">Card # {index + 1}</CardTitle>
+          <div className="flex gap-2">
+            <CardForm deckId={deckId} card={card} mode="edit" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+            >
+              <Trash2 className="h-4 w-4 text-red-500 hover:text-red-400" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">
+              Front
+            </p>
+            <p className="text-sm">{card.front}</p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">
+              Back
+            </p>
+            <p className="text-sm">{card.back}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Card</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this card? This action cannot be
+              undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+

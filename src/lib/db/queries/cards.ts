@@ -53,11 +53,18 @@ export async function createCard(deckId: string, userId: string, data: { front: 
     throw new Error("Deck not found or access denied");
   }
   
+  // Calculate position if not provided - set to the current card count
+  let position = data.position;
+  if (position === undefined) {
+    const existingCards = await db.select().from(cards).where(eq(cards.deckId, deckId));
+    position = existingCards.length;
+  }
+  
   const [newCard] = await db.insert(cards).values({
     deckId,
     front: data.front,
     back: data.back,
-    position: data.position ?? 0,
+    position,
   }).returning();
   
   return newCard;
