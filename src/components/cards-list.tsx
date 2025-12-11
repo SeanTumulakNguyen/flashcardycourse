@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 import { CardItem } from "./card-item";
 
 interface Card {
@@ -23,49 +23,37 @@ interface CardsListProps {
   deckId: string;
 }
 
-type SortOrder = "none" | "asc" | "desc";
+type SortOrder = "asc" | "desc";
 
 export function CardsList({ cards, deckId }: CardsListProps) {
-  const [sortOrder, setSortOrder] = useState<SortOrder>("none");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const sortedCards = useMemo(() => {
-    if (sortOrder === "none") {
-      // Return cards in their original order (by position)
-      return [...cards].sort((a, b) => a.position - b.position);
-    }
-    
-    const sorted = [...cards].sort((a, b) => {
-      // Handle both Date objects and date strings
-      const dateA = new Date(a.createdAt).getTime();
-      const dateB = new Date(b.createdAt).getTime();
-      
+    return [...cards].sort((a, b) => {
       if (sortOrder === "asc") {
-        return dateA - dateB;
+        return a.position - b.position;
       } else {
-        return dateB - dateA;
+        return b.position - a.position;
       }
     });
-    return sorted;
   }, [cards, sortOrder]);
 
   const toggleSort = () => {
-    setSortOrder((prev) => {
-      if (prev === "none") return "asc";
-      if (prev === "asc") return "desc";
-      return "none";
-    });
+    setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
   };
 
   const getSortIcon = () => {
-    if (sortOrder === "asc") return <ArrowUp className="h-4 w-4" />;
-    if (sortOrder === "desc") return <ArrowDown className="h-4 w-4" />;
-    return <ArrowUpDown className="h-4 w-4" />;
+    return sortOrder === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    );
   };
 
   const getNextSortTooltip = () => {
-    if (sortOrder === "none") return "Sort ascending (oldest first)";
-    if (sortOrder === "asc") return "Sort descending (newest first)";
-    return "Remove sort (by position)";
+    return sortOrder === "asc"
+      ? "Sort descending (position)"
+      : "Sort ascending (position)";
   };
 
   return (
@@ -79,11 +67,7 @@ export function CardsList({ cards, deckId }: CardsListProps) {
               onClick={toggleSort}
               className="p-2"
               aria-label={
-                sortOrder === "asc"
-                  ? "Sort ascending"
-                  : sortOrder === "desc"
-                  ? "Sort descending"
-                  : "Unsorted"
+                sortOrder === "asc" ? "Sort ascending" : "Sort descending"
               }
             >
               {getSortIcon()}
