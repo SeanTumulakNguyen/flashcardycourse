@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { CardsList } from "@/components/cards-list";
+import { EditDeckDialog } from "@/components/edit-deck-dialog";
 
 interface DeckPageProps {
   params: Promise<{
@@ -41,13 +42,22 @@ export default async function DeckPage({ params }: DeckPageProps) {
             Back to Dashboard
           </Link>
         </Button>
-        <h1 className="text-3xl font-bold mb-2">{deck.name}</h1>
-        {deck.description && (
-          <p className="text-muted-foreground">{deck.description}</p>
-        )}
-        <p className="text-sm text-muted-foreground mt-2">
-          {deck.cards.length} {deck.cards.length === 1 ? "card" : "cards"}
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold mb-2">{deck.name}</h1>
+            {deck.description && (
+              <p className="text-muted-foreground">{deck.description}</p>
+            )}
+            <p className="text-sm text-muted-foreground mt-2">
+              {deck.cards.length} {deck.cards.length === 1 ? "card" : "cards"}
+            </p>
+          </div>
+          <EditDeckDialog
+            deckId={deckId}
+            currentName={deck.name}
+            currentDescription={deck.description}
+          />
+        </div>
       </div>
 
       <CardsList cards={sortedCards} deckId={deckId} />
