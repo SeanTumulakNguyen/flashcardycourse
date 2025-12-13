@@ -37,9 +37,9 @@ export default async function DeckPage({ params }: DeckPageProps) {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
         <Button variant="ghost" asChild className="mb-4">
-          <Link href="/dashboard">
+          <Link href="/dashboard/courses">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
+            Back to Courses
           </Link>
         </Button>
         <div className="flex items-start justify-between gap-4">

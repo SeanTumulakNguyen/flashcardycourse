@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { BookOpen, ArrowLeft } from "lucide-react";
+import { CreateDeckDialog } from "@/components/create-deck-dialog";
 
 export default async function CoursesPage() {
   const { userId } = await auth();
@@ -24,18 +25,21 @@ export default async function CoursesPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <div className="flex items-center gap-4 mb-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard">
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold mb-2">My Courses</h1>
-            <p className="text-muted-foreground">
-              Manage your flashcard decks and learning materials
-            </p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/dashboard">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold mb-2">My Courses</h1>
+              <p className="text-muted-foreground">
+                Manage your flashcard decks and learning materials
+              </p>
+            </div>
           </div>
+          <CreateDeckDialog />
         </div>
       </div>
 
