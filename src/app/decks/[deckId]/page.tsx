@@ -4,7 +4,7 @@ import { getUserDeck } from "@/lib/db/queries/decks";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ArrowLeft, BookOpen } from "lucide-react";
+import { ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
 import { CardsList } from "@/components/cards-list";
 import { EditDeckDialog } from "@/components/edit-deck-dialog";
 
@@ -52,11 +52,21 @@ export default async function DeckPage({ params }: DeckPageProps) {
               {deck.cards.length} {deck.cards.length === 1 ? "card" : "cards"}
             </p>
           </div>
-          <EditDeckDialog
-            deckId={deckId}
-            currentName={deck.name}
-            currentDescription={deck.description}
-          />
+          <div className="flex items-center gap-2">
+            {deck.cards.length > 0 && (
+              <Button asChild>
+                <Link href={`/decks/${deckId}/study`}>
+                  <GraduationCap className="h-4 w-4 mr-2" />
+                  Study
+                </Link>
+              </Button>
+            )}
+            <EditDeckDialog
+              deckId={deckId}
+              currentName={deck.name}
+              currentDescription={deck.description}
+            />
+          </div>
         </div>
       </div>
 
