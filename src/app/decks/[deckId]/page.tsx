@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
 import { CardsList } from "@/components/cards-list";
 import { EditDeckDialog } from "@/components/edit-deck-dialog";
+import { DeleteDeckDialog } from "@/components/delete-deck-dialog";
 
 interface DeckPageProps {
   params: Promise<{
@@ -66,6 +67,7 @@ export default async function DeckPage({ params }: DeckPageProps) {
               currentName={deck.name}
               currentDescription={deck.description}
             />
+            <DeleteDeckDialog deckId={deckId} deckName={deck.name} />
           </div>
         </div>
       </div>

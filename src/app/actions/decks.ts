@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { updateDeck, createDeck } from "@/lib/db/queries/decks";
+import { updateDeck, createDeck, deleteDeck } from "@/lib/db/queries/decks";
 
 // Schema for updating a deck
 const updateDeckSchema = z.object({
@@ -57,5 +57,26 @@ export async function createDeckAction(input: CreateDeckInput) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/courses");
   return newDeck;
+}
+
+// Schema for deleting a deck
+const deleteDeckSchema = z.object({
+  deckId: z.string().uuid(),
+});
+
+type DeleteDeckInput = z.infer<typeof deleteDeckSchema>;
+
+export async function deleteDeckAction(input: DeleteDeckInput) {
+  const validatedInput = deleteDeckSchema.parse(input);
+
+  const { userId } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  await deleteDeck(validatedInput.deckId, userId);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/courses");
 }
 
