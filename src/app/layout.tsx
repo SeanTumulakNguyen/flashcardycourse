@@ -46,6 +46,9 @@ export default function RootLayout({
                 <Link href="/" className="font-semibold text-lg">
                   Flashcard Course
                 </Link>
+                <Button variant="ghost" asChild>
+                  <Link href="/pricing">Pricing</Link>
+                </Button>
                 <SignedIn>
                   <Button variant="ghost" asChild>
                     <Link href="/dashboard">Dashboard</Link>

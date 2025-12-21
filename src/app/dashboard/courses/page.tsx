@@ -10,37 +10,67 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { BookOpen, ArrowLeft } from "lucide-react";
+import { BookOpen, ArrowLeft, AlertCircle } from "lucide-react";
 import { CreateDeckDialog } from "@/components/create-deck-dialog";
 
 export default async function CoursesPage() {
-  const { userId } = await auth();
+  const { userId, has } = await auth();
 
   if (!userId) {
     redirect("/");
   }
 
   const decks = await getUserDecks(userId);
+  const hasUnlimitedDecks = has({ feature: "unlimited_decks" });
+  const deckLimit = hasUnlimitedDecks ? Infinity : 3;
+  const canCreateDeck = hasUnlimitedDecks || decks.length < 3;
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
+        <div className={`flex items-center justify-between ${!hasUnlimitedDecks ? "mb-3" : "mb-4"}`}>
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/dashboard">
                 <ArrowLeft className="h-4 w-4" />
               </Link>
             </Button>
-            <div>
-              <h1 className="text-3xl font-bold mb-2">My Courses</h1>
-              <p className="text-muted-foreground">
-                Manage your flashcard decks and learning materials
-              </p>
-            </div>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">My Courses</h1>
+            <p className="text-muted-foreground">
+              Manage your flashcard decks and learning materials
+            </p>
           </div>
-          <CreateDeckDialog />
         </div>
+        {canCreateDeck && <CreateDeckDialog />}
+      </div>
+
+        {!hasUnlimitedDecks && (
+          <Card className="border-muted">
+            <CardContent >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">
+                      Deck Limit: {decks.length} / {deckLimit}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {decks.length >= deckLimit
+                        ? "You've reached your deck limit"
+                        : `${deckLimit - decks.length} deck${deckLimit - decks.length === 1 ? "" : "s"} remaining`}
+                    </p>
+                  </div>
+                </div>
+                {decks.length >= deckLimit && (
+                  <Button asChild>
+                    <Link href="/pricing">Upgrade to Pro</Link>
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {decks.length === 0 ? (

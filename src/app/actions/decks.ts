@@ -3,7 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { updateDeck, createDeck, deleteDeck } from "@/lib/db/queries/decks";
+import { updateDeck, createDeck, deleteDeck, getUserDecks } from "@/lib/db/queries/decks";
 
 // Schema for updating a deck
 const updateDeckSchema = z.object({
@@ -44,9 +44,22 @@ type CreateDeckInput = z.infer<typeof createDeckSchema>;
 export async function createDeckAction(input: CreateDeckInput) {
   const validatedInput = createDeckSchema.parse(input);
 
-  const { userId } = await auth();
+  const { userId, has } = await auth();
   if (!userId) {
     throw new Error("Unauthorized");
+  }
+
+  // Check if user has unlimited_decks feature
+  const hasUnlimitedDecks = has({ feature: "unlimited_decks" });
+
+  // If user doesn't have unlimited decks, check deck limit
+  if (!hasUnlimitedDecks) {
+    const userDecks = await getUserDecks(userId);
+    if (userDecks.length >= 3) {
+      throw new Error(
+        "Deck limit reached. Upgrade to Pro for unlimited decks."
+      );
+    }
   }
 
   const newDeck = await createDeck(userId, {

@@ -14,11 +14,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createDeckAction } from "@/app/actions/decks";
-import { Plus } from "lucide-react";
+import { Plus, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-export function CreateDeckDialog() {
+interface CreateDeckDialogProps {
+  disabled?: boolean;
+}
+
+export function CreateDeckDialog({ disabled = false }: CreateDeckDialogProps) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState("");
@@ -42,7 +47,11 @@ export function CreateDeckDialog() {
       // Navigate to the new deck
       router.push(`/decks/${newDeck.id}`);
     } catch (error) {
-      toast.error("Failed to create deck");
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to create deck";
+      toast.error(errorMessage);
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -61,19 +70,40 @@ export function CreateDeckDialog() {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>
+        <Button disabled={disabled}>
           <Plus className="h-4 w-4 mr-2" />
           Create New Deck
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Create New Deck</DialogTitle>
-            <DialogDescription>
-              Create a new flashcard deck to start studying.
-            </DialogDescription>
-          </DialogHeader>
+        {disabled ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="h-5 w-5" />
+                Deck Limit Reached
+              </DialogTitle>
+              <DialogDescription>
+                You've reached your deck limit. Upgrade to Pro for unlimited decks.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground mb-4">
+                Free users are limited to 3 decks. Upgrade to Pro to create unlimited decks and unlock AI-powered flashcard generation.
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/pricing">Upgrade to Pro</Link>
+              </Button>
+            </div>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>Create New Deck</DialogTitle>
+              <DialogDescription>
+                Create a new flashcard deck to start studying.
+              </DialogDescription>
+            </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
@@ -116,6 +146,7 @@ export function CreateDeckDialog() {
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
