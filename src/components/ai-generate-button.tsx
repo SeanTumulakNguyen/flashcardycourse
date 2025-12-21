@@ -28,10 +28,21 @@ export function AIGenerateButton({
   const router = useRouter();
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Check if deck has both title and description
+  const hasTitle = deckName && deckName.trim().length > 0;
+  const hasDescription = deckDescription && deckDescription.trim().length > 0;
+  const canGenerate = hasTitle && hasDescription;
+
   const handleClick = async () => {
     // If user doesn't have AI generation feature, redirect to pricing immediately
     if (!hasAIGeneration) {
       router.push("/pricing");
+      return;
+    }
+
+    // Validate that both title and description exist
+    if (!canGenerate) {
+      toast.error("Deck title and description are required for AI card generation.");
       return;
     }
 
@@ -41,7 +52,7 @@ export function AIGenerateButton({
       const result = await generateFlashcardsAction({
         deckId,
         deckName,
-        deckDescription: deckDescription || undefined,
+        deckDescription: deckDescription!,
         numberOfCards: 20,
       });
       toast.success(`Generated ${result.cards.length} flashcards!`);
@@ -56,14 +67,15 @@ export function AIGenerateButton({
     }
   };
 
-  const buttonContent = (
-    <>
-      <Sparkles className="h-4 w-4 mr-2" />
-      {isGenerating ? "Generating..." : "Generate cards with AI"}
-    </>
-  );
+  // Determine tooltip message based on state
+  const tooltipMessage = !hasAIGeneration
+    ? "AI card generation is a premium feature. Upgrade to Pro to unlock this feature."
+    : !canGenerate
+    ? "Deck title and description are required for AI card generation."
+    : null;
 
-  if (!hasAIGeneration) {
+  // Show tooltip if user doesn't have feature or if requirements aren't met
+  if (tooltipMessage) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
@@ -72,11 +84,12 @@ export function AIGenerateButton({
             disabled={isGenerating}
             variant="outline"
           >
-            {buttonContent}
+            <Sparkles className="h-4 w-4 mr-2" />
+            {isGenerating ? "Generating..." : "Generate cards with AI"}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-xs">
-          <p>AI card generation is a premium feature. Upgrade to Pro to unlock this feature.</p>
+          <p>{tooltipMessage}</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -88,7 +101,8 @@ export function AIGenerateButton({
       disabled={isGenerating}
       variant="default"
     >
-      {buttonContent}
+      <Sparkles className="h-4 w-4 mr-2" />
+      {isGenerating ? "Generating..." : "Generate cards with AI"}
     </Button>
   );
 }

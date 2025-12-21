@@ -41,7 +41,7 @@ export function EditDeckDialog({
       await updateDeckAction({
         deckId,
         name: name.trim() || undefined,
-        description: description.trim() || undefined,
+        description: description.trim() || null,
       });
 
       toast.success("Deck updated successfully");

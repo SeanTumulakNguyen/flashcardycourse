@@ -9,7 +9,12 @@ import { updateDeck, createDeck, deleteDeck, getUserDecks } from "@/lib/db/queri
 const updateDeckSchema = z.object({
   deckId: z.string().uuid(),
   name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
+  description: z
+    .string()
+    .max(500)
+    .transform((val) => (val === "" ? null : val))
+    .nullable()
+    .optional(),
 });
 
 type UpdateDeckInput = z.infer<typeof updateDeckSchema>;
@@ -22,10 +27,16 @@ export async function updateDeckAction(input: UpdateDeckInput) {
     throw new Error("Unauthorized");
   }
 
-  const updatedDeck = await updateDeck(validatedInput.deckId, userId, {
-    name: validatedInput.name,
-    description: validatedInput.description,
-  });
+  // Build update data, only including fields that are provided
+  const updateData: { name?: string; description?: string | null } = {};
+  if (validatedInput.name !== undefined) {
+    updateData.name = validatedInput.name;
+  }
+  if (validatedInput.description !== undefined) {
+    updateData.description = validatedInput.description;
+  }
+
+  const updatedDeck = await updateDeck(validatedInput.deckId, userId, updateData);
 
   revalidatePath(`/decks/${validatedInput.deckId}`);
   revalidatePath("/dashboard");

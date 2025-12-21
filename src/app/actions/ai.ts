@@ -10,7 +10,7 @@ import { createCard } from "@/lib/db/queries/cards";
 const generateFlashcardsSchema = z.object({
   deckId: z.string().uuid(),
   deckName: z.string().min(1).max(500),
-  deckDescription: z.string().max(1000).optional(),
+  deckDescription: z.string().min(1).max(1000), // Required - both title and description are needed
   numberOfCards: z.number().int().min(1).max(50).default(20),
 });
 
@@ -34,10 +34,13 @@ export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
     );
   }
 
-  // 4. Generate flashcards using Vercel AI SDK
-  const prompt = validatedInput.deckDescription
-    ? `Generate exactly ${validatedInput.numberOfCards} flashcards about "${validatedInput.deckName}". Description: "${validatedInput.deckDescription}". Each card should have a clear question or prompt on the front and a concise, accurate answer on the back.`
-    : `Generate exactly ${validatedInput.numberOfCards} flashcards about "${validatedInput.deckName}". Each card should have a clear question or prompt on the front and a concise, accurate answer on the back.`;
+  // 4. Validate that both title and description are provided
+  if (!validatedInput.deckName || !validatedInput.deckDescription) {
+    throw new Error("Deck title and description are required for AI card generation.");
+  }
+
+  // 5. Generate flashcards using Vercel AI SDK
+  const prompt = `Generate exactly ${validatedInput.numberOfCards} flashcards about "${validatedInput.deckName}". Description: "${validatedInput.deckDescription}". Each card should have a clear question or prompt on the front and a concise, accurate answer on the back.`;
 
   const { object } = await generateObject({
     model: "openai/gpt-4o",
@@ -52,7 +55,7 @@ export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
     prompt,
   });
 
-  // 5. Save generated cards to database
+  // 6. Save generated cards to database
   const createdCards = [];
   for (let i = 0; i < object.cards.length; i++) {
     const card = object.cards[i];
@@ -64,7 +67,7 @@ export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
     createdCards.push(newCard);
   }
 
-  // 6. Revalidate paths
+  // 7. Revalidate paths
   revalidatePath(`/decks/${validatedInput.deckId}`);
   revalidatePath("/dashboard/courses");
 

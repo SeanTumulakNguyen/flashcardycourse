@@ -44,7 +44,7 @@ export async function createDeck(userId: string, data: { name: string; descripti
 /**
  * Update a deck, verifying ownership
  */
-export async function updateDeck(deckId: string, userId: string, data: { name?: string; description?: string }) {
+export async function updateDeck(deckId: string, userId: string, data: { name?: string; description?: string | null }) {
   // Verify ownership first
   const deck = await db.query.decks.findFirst({
     where: and(
@@ -57,8 +57,21 @@ export async function updateDeck(deckId: string, userId: string, data: { name?: 
     throw new Error("Deck not found or access denied");
   }
   
+  // Build update object with only provided fields
+  const updateData: { name?: string; description?: string | null; updatedAt?: Date } = {
+    updatedAt: new Date(),
+  };
+  
+  if (data.name !== undefined) {
+    updateData.name = data.name;
+  }
+  
+  if (data.description !== undefined) {
+    updateData.description = data.description; // Can be null to clear description
+  }
+  
   const [updatedDeck] = await db.update(decks)
-    .set(data)
+    .set(updateData)
     .where(eq(decks.id, deckId))
     .returning();
   
