@@ -8,6 +8,7 @@ import { ArrowLeft, BookOpen, GraduationCap } from "lucide-react";
 import { CardsList } from "@/components/cards-list";
 import { EditDeckDialog } from "@/components/edit-deck-dialog";
 import { DeleteDeckDialog } from "@/components/delete-deck-dialog";
+import { AIGenerateButton } from "@/components/ai-generate-button";
 
 interface DeckPageProps {
   params: Promise<{
@@ -16,7 +17,7 @@ interface DeckPageProps {
 }
 
 export default async function DeckPage({ params }: DeckPageProps) {
-  const { userId } = await auth();
+  const { userId, has } = await auth();
 
   if (!userId) {
     redirect("/");
@@ -30,6 +31,9 @@ export default async function DeckPage({ params }: DeckPageProps) {
   } catch (error) {
     notFound();
   }
+
+  // Check if user has AI generation feature
+  const hasAIGeneration = has({ feature: "ai_flashcard_generation" });
 
   // Cards will be sorted by updatedAt in the client component (newest first by default)
   const sortedCards = [...deck.cards];
@@ -54,6 +58,12 @@ export default async function DeckPage({ params }: DeckPageProps) {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <AIGenerateButton
+              deckId={deckId}
+              deckName={deck.name}
+              deckDescription={deck.description}
+              hasAIGeneration={hasAIGeneration}
+            />
             {deck.cards.length > 0 && (
               <Button asChild>
                 <Link href={`/decks/${deckId}/study`}>
