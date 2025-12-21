@@ -1,0 +1,357 @@
+---
+alwaysApply: true
+description: Vercel AI SDK usage for AI-powered features, specifically flashcard generation
+---
+
+# Vercel AI SDK Rules
+
+**CRITICAL**: This project uses the Vercel AI SDK (`ai` npm package) to call OpenAI for AI features, specifically AI flashcard generation.
+
+**⚠️ PREMIUM FEATURE**: AI flashcard generation is a **premium feature** that requires a Pro subscription. This feature is gated by the `ai_flashcard_generation` feature flag in Clerk Billing. Always verify feature access before allowing users to generate flashcards.
+
+## Installation
+
+The `ai` package must be installed:
+
+```bash
+npm install ai
+```
+
+## Core Pattern: Generating Structured Data
+
+**⚠️ PREMIUM FEATURE**: AI flashcard generation is a premium feature. Users must have the `ai_flashcard_generation` feature enabled (via Pro subscription) to use this functionality.
+
+The Vercel AI SDK's `generateObject` function is used to generate structured data with Zod schemas. For flashcard generation, this generates an array of cards with `front` and `back` properties.
+
+### ✅ CORRECT: Basic Flashcard Generation Pattern
+
+```typescript
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+const { object } = await generateObject({
+  model: "openai/gpt-4o", // String format: "provider/model-name"
+  schema: z.object({
+    cards: z.array(
+      z.object({
+        front: z.string().min(1).max(1000),
+        back: z.string().min(1).max(1000),
+      })
+    ),
+  }),
+  prompt: 'Generate 10 flashcards about JavaScript fundamentals.',
+});
+
+// object.cards is an array of { front: string, back: string } objects
+```
+
+### ✅ CORRECT: Generating Specific Number of Cards
+
+```typescript
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+const numberOfCards = 10; // Can be dynamic
+
+const { object } = await generateObject({
+  model: "openai/gpt-4o",
+  schema: z.object({
+    cards: z.array(
+      z.object({
+        front: z.string().min(1).max(1000),
+        back: z.string().min(1).max(1000),
+      })
+    ).length(numberOfCards), // Specify exact number of cards
+  }),
+  prompt: `Generate exactly ${numberOfCards} flashcards about React hooks. Each card should have a clear question on the front and a concise answer on the back.`,
+});
+```
+
+## Integration with Server Actions
+
+**⚠️ PREMIUM FEATURE**: AI flashcard generation is a premium feature and **MUST** be implemented as a Server Action, following the project's architecture patterns. Always check for the `ai_flashcard_generation` feature before allowing generation.
+
+### ✅ CORRECT: Complete Server Action for AI Flashcard Generation
+
+```typescript
+// app/actions/ai.ts
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { z } from "zod";
+import { generateObject } from 'ai';
+import { revalidatePath } from "next/cache";
+import { createCard } from "@/lib/db/queries/cards";
+
+// Input schema for AI generation
+const generateFlashcardsSchema = z.object({
+  deckId: z.string().uuid(),
+  topic: z.string().min(1).max(500),
+  numberOfCards: z.number().int().min(1).max(50).default(10),
+});
+
+type GenerateFlashcardsInput = z.infer<typeof generateFlashcardsSchema>;
+
+export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
+  // 1. Validate input
+  const validatedInput = generateFlashcardsSchema.parse(input);
+
+  // 2. Authenticate and check feature access
+  const { userId, has } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // 3. Check AI feature access (PREMIUM FEATURE - requires Pro subscription)
+  const hasAIGeneration = has({ feature: 'ai_flashcard_generation' });
+  if (!hasAIGeneration) {
+    throw new Error("AI flashcard generation is a premium feature and requires a Pro subscription.");
+  }
+
+  // 4. Generate flashcards using Vercel AI SDK
+  const { object } = await generateObject({
+    model: "openai/gpt-4o",
+    schema: z.object({
+      cards: z.array(
+        z.object({
+          front: z.string().min(1).max(1000),
+          back: z.string().min(1).max(1000),
+        })
+      ).length(validatedInput.numberOfCards),
+    }),
+    prompt: `Generate exactly ${validatedInput.numberOfCards} flashcards about "${validatedInput.topic}". Each card should have a clear question or prompt on the front and a concise, accurate answer on the back.`,
+  });
+
+  // 5. Save generated cards to database
+  const createdCards = [];
+  for (let i = 0; i < object.cards.length; i++) {
+    const card = object.cards[i];
+    const newCard = await createCard(validatedInput.deckId, userId, {
+      front: card.front,
+      back: card.back,
+      position: i, // Maintain order
+    });
+    createdCards.push(newCard);
+  }
+
+  // 6. Revalidate paths
+  revalidatePath(`/decks/${validatedInput.deckId}`);
+  revalidatePath("/decks");
+
+  return { cards: createdCards };
+}
+```
+
+### ✅ CORRECT: Using in Client Component
+
+```typescript
+// components/ai-generate-flashcards.tsx
+"use client";
+
+import { generateFlashcardsAction } from "@/app/actions/ai";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { toast } from "sonner";
+
+export function AIGenerateFlashcards({ deckId }: { deckId: string }) {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    try {
+      const result = await generateFlashcardsAction({
+        deckId,
+        topic: "JavaScript fundamentals",
+        numberOfCards: 10,
+      });
+      toast.success(`Generated ${result.cards.length} flashcards!`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to generate flashcards");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <Button onClick={handleGenerate} disabled={isGenerating}>
+      {isGenerating ? "Generating..." : "AI Generate Flashcards"}
+    </Button>
+  );
+}
+```
+
+## Model Configuration
+
+### ✅ CORRECT: Using OpenAI Models
+
+The Vercel AI SDK supports string-based model identifiers. Use the format `"provider/model-name"`:
+
+```typescript
+import { generateObject } from 'ai';
+
+// Use OpenAI models with string format
+const { object } = await generateObject({
+  model: "openai/gpt-4o", // Recommended for structured generation
+  // or
+  model: "openai/gpt-4-turbo",
+  // or
+  model: "openai/gpt-3.5-turbo", // Faster, cheaper, but less accurate
+  schema: z.object({ /* ... */ }),
+  prompt: '...',
+});
+```
+
+**Alternative**: You can also use provider functions from `@ai-sdk/openai`:
+
+```typescript
+import { generateObject } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const { object } = await generateObject({
+  model: openai('gpt-4o'),
+  schema: z.object({ /* ... */ }),
+  prompt: '...',
+});
+```
+
+### ✅ CORRECT: Environment Variables
+
+The OpenAI API key should be stored in environment variables:
+
+```bash
+# .env.local
+OPENAI_API_KEY=your_api_key_here
+```
+
+The Vercel AI SDK automatically reads from `OPENAI_API_KEY` environment variable when using string-based model identifiers or provider functions.
+
+## Error Handling
+
+### ✅ CORRECT: Comprehensive Error Handling
+
+```typescript
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { generateObject } from 'ai';
+import { z } from 'zod';
+
+export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
+  const { userId, has } = await auth();
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  if (!has({ feature: 'ai_flashcard_generation' })) {
+    throw new Error("AI flashcard generation is a premium feature and requires a Pro subscription.");
+  }
+
+  try {
+    const { object } = await generateObject({
+      model: "openai/gpt-4o",
+      schema: z.object({
+        cards: z.array(
+          z.object({
+            front: z.string().min(1).max(1000),
+            back: z.string().min(1).max(1000),
+          })
+        ),
+      }),
+      prompt: `Generate flashcards about "${input.topic}".`,
+    });
+
+    // Process and save cards...
+    return { cards: createdCards };
+  } catch (error) {
+    // Handle AI generation errors
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        throw new Error("AI service configuration error. Please contact support.");
+      }
+      if (error.message.includes('rate limit')) {
+        throw new Error("AI service is temporarily unavailable. Please try again later.");
+      }
+    }
+    throw new Error("Failed to generate flashcards. Please try again.");
+  }
+}
+```
+
+## Best Practices
+
+1. **⚠️ PREMIUM FEATURE CHECK**: Always verify `ai_flashcard_generation` feature access before allowing generation - this is a premium feature
+2. **Always validate input**: Use Zod schemas for all inputs to Server Actions
+3. **Check feature access**: Always verify `ai_flashcard_generation` feature before generating (premium feature)
+4. **Handle errors gracefully**: Provide user-friendly error messages that clearly indicate this is a premium feature
+5. **Limit card count**: Enforce reasonable limits (e.g., max 50 cards per generation)
+6. **Maintain card order**: Use `position` field to preserve the order of generated cards
+7. **Revalidate paths**: Always call `revalidatePath` after creating cards
+8. **Use appropriate models**: `gpt-4o` is recommended for structured generation, but `gpt-3.5-turbo` can be used for cost savings
+9. **Prompt engineering**: Write clear, specific prompts that include the desired number of cards and topic
+10. **UI indicators**: Clearly label AI generation features as "Premium" or "Pro" in the UI
+
+## ❌ INCORRECT: Common Mistakes
+
+```typescript
+// ❌ NEVER generate cards without feature check (PREMIUM FEATURE)
+export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
+  const { object } = await generateObject({ /* ... */ });
+  // ❌ Missing: Premium feature access check - AI generation is a premium feature
+}
+
+// ❌ NEVER skip input validation
+export async function generateFlashcardsAction(input: any) {
+  // ❌ Missing: Zod schema validation
+  const { object } = await generateObject({ /* ... */ });
+}
+
+// ❌ NEVER generate cards in client components
+"use client";
+export function GenerateButton() {
+  const handleClick = async () => {
+    // ❌ DO NOT call generateObject in client components
+    const { object } = await generateObject({ /* ... */ });
+  };
+}
+
+// ❌ NEVER skip error handling
+export async function generateFlashcardsAction(input: GenerateFlashcardsInput) {
+  const { object } = await generateObject({ /* ... */ });
+  // ❌ Missing: Try-catch error handling
+  await createCard(/* ... */);
+}
+
+// ❌ NEVER hardcode API keys
+const { object } = await generateObject({
+  model: "openai/gpt-4o",
+  // ❌ DO NOT pass apiKey directly - use environment variables instead
+  schema: z.object({ /* ... */ }),
+  prompt: '...',
+});
+```
+
+## Schema Reference
+
+Flashcards in this project follow the schema defined in [src/lib/db/schema.ts](mdc:src/lib/db/schema.ts):
+- `front`: text (required, max 1000 chars)
+- `back`: text (required, max 1000 chars)
+- `position`: integer (for ordering)
+
+The Zod schema for AI generation should match these constraints.
+
+## Checklist
+
+Before implementing AI flashcard generation:
+
+1. ✅ Is the `ai` package installed?
+2. ✅ Is `OPENAI_API_KEY` set in environment variables?
+3. ✅ Is the generation implemented as a Server Action?
+4. ✅ Is input validated with Zod?
+5. ✅ Is feature access checked (`ai_flashcard_generation`)?
+6. ✅ Is authentication verified?
+7. ✅ Are errors handled gracefully?
+8. ✅ Are paths revalidated after card creation?
+9. ✅ Is card position maintained?
+10. ✅ Is the prompt clear and specific?
+
+**Remember**: AI flashcard generation is a **premium feature** that requires a Pro subscription. Always check for the `ai_flashcard_generation` feature access before generating content. Never allow free users to generate flashcards without proper feature verification.
